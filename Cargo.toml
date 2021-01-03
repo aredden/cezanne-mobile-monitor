@@ -1,0 +1,10 @@
+[package]
+name = "renoir-mobile"
+version = "0.1.0"
+authors = ["Kyuno <kyuno@protonmail.com>"]
+edition = "2018"
+
+[dependencies]
+libc = "0.2.80"
+libloading = "0.6"
+json = "*"
