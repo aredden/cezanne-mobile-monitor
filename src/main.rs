@@ -1,11 +1,14 @@
-#![feature(assoc_char_funcs)]
-
 use std::{thread, time};
 mod smu;
 mod ols;
-
+mod load_json;
+mod cezanne;
+use regex::Regex;
+use lazy_static::{lazy_static};
 use crate::ols::Ols; //, smu};
 use crate::smu::{Smu, read_float};
+use crate::cezanne::get_cezanne_data;
+
 use std::time::Duration;
 
 #[macro_use]
@@ -27,6 +30,12 @@ struct MonitoringItem {
     value: f32
 }
 
+fn is_cezanne(text: &str) -> bool {
+    lazy_static! {
+        static ref RE: Regex = Regex::new(r"5\d00").unwrap();
+    }
+    RE.is_match(text)
+}
 
 impl MonitoringItem {
     pub fn new(description: String, unit: Unit, offset: u32) -> MonitoringItem {
@@ -47,9 +56,15 @@ fn main() {
 
     let smu = Smu::new(ols);
     let init = smu.write_reg(crate::smu::PSMU_ADDR_RSP, 0x1); //Initialize
-    println!("init={}", init);
-    println!("cpu_name={}", smu.cpu_name());
+    let cpu_name = smu.cpu_name();
 
+    if !is_cezanne(&cpu_name) {
+        panic!("CPU is not cezanne!");
+    }
+
+    println!("init={}", init);
+    println!("cpu_name={}", &cpu_name);
+    
     let mut args: Vec<u32> = vec![0, 0, 0, 0, 0, 0];
     smu.send_psmu(0x66, &mut args);
     let address = args[0];
@@ -64,39 +79,55 @@ fn main() {
         0.0 => 0x00370005,
         _ => 0x00370004
     };*/
+    
+    fn build_monit_item(name: String, unit: Unit) -> MonitoringItem {
+        let cdata = get_cezanne_data();    
+
+        let offset = cdata.get(&name);
+        if offset.is_none(){
+            panic!("{} not found", &name);
+        }
+        let offset_int = offset.unwrap().parse::<u32>().unwrap();
+        MonitoringItem::new(name,unit,offset_int)
+    }
 
     let mut items = vec![
-        MonitoringItem::new("STAPM LIMIT".to_owned(), Unit::Watt, 0x0),
-        MonitoringItem::new("STAPM VALUE".to_owned(), Unit::Watt, 0x4),
+        build_monit_item(String::from("STAPM_LIMIT"), Unit::Watt),
+        build_monit_item(String::from("STAPM_VALUE"), Unit::Watt),
 
-        MonitoringItem::new("PPT LIMIT FAST".to_owned(), Unit::Watt, 0x8),
-        MonitoringItem::new("PPT VALUE FAST".to_owned(), Unit::Watt, 0xC),
-        MonitoringItem::new("PPT LIMIT SLOW".to_owned(), Unit::Watt, 0x10),
-        MonitoringItem::new("PPT VALUE SLOW".to_owned(), Unit::Watt, 0x14),
+        build_monit_item(String::from("PPT_LIMIT_FAST"), Unit::Watt),
+        build_monit_item(String::from("PPT_VALUE_FAST"), Unit::Watt),
+        build_monit_item(String::from("PPT_LIMIT_SLOW"), Unit::Watt),
+        build_monit_item(String::from("PPT_VALUE_SLOW"), Unit::Watt),
+        
+        build_monit_item(String::from("THM_LIMIT_CORE"), Unit::Celsius),
+        build_monit_item(String::from("THM_VALUE_CORE"), Unit::Celsius),
 
-        MonitoringItem::new("THM LIMIT CORE".to_owned(), Unit::Watt, 0x40),
-        MonitoringItem::new("THM VALUE CORE".to_owned(), Unit::Watt, 0x44),
+        build_monit_item(String::from("CORE_FREQ_0"), Unit::Mhz),
+        build_monit_item(String::from("CORE_FREQ_1"), Unit::Mhz),
+        build_monit_item(String::from("CORE_FREQ_2"), Unit::Mhz),
+        build_monit_item(String::from("CORE_FREQ_3"), Unit::Mhz),
+        build_monit_item(String::from("CORE_FREQ_4"), Unit::Mhz),
+        build_monit_item(String::from("CORE_FREQ_5"), Unit::Mhz),
+        build_monit_item(String::from("CORE_FREQ_6"), Unit::Mhz),
+        build_monit_item(String::from("CORE_FREQ_7"), Unit::Mhz),
+        
+        build_monit_item(String::from("CORE_TEMP_0"), Unit::Celsius),
+        build_monit_item(String::from("CORE_TEMP_1"), Unit::Celsius),
+        build_monit_item(String::from("CORE_TEMP_2"), Unit::Celsius),
+        build_monit_item(String::from("CORE_TEMP_3"), Unit::Celsius),
+        build_monit_item(String::from("CORE_TEMP_4"), Unit::Celsius),
+        build_monit_item(String::from("CORE_TEMP_5"), Unit::Celsius),
+        build_monit_item(String::from("CORE_TEMP_6"), Unit::Celsius),
+        build_monit_item(String::from("CORE_TEMP_7"), Unit::Celsius),
 
-        MonitoringItem::new("CORE FREQ 0".to_owned(), Unit::Mhz, 0x3BC),
-        MonitoringItem::new("CORE FREQ 1".to_owned(), Unit::Mhz, 0x3C0),
-        MonitoringItem::new("CORE FREQ 2".to_owned(), Unit::Mhz, 0x3C4),
-        MonitoringItem::new("CORE FREQ 3".to_owned(), Unit::Mhz, 0x3C8),
-        MonitoringItem::new("CORE FREQ 4".to_owned(), Unit::Mhz, 0x3CC),
-        MonitoringItem::new("CORE FREQ 5".to_owned(), Unit::Mhz, 0x3D0),
-        MonitoringItem::new("CORE FREQ 6".to_owned(), Unit::Mhz, 0x3D4),
-        MonitoringItem::new("CORE FREQ 7".to_owned(), Unit::Mhz, 0x3D8),
+        
+        build_monit_item(String::from("CORE_TEMP_6"), Unit::Mhz),
+        build_monit_item(String::from("CORE_TEMP_7"), Unit::Mhz),
 
-        MonitoringItem::new("CORE TEMP 0".to_owned(), Unit::Celsius, 860),
-        MonitoringItem::new("CORE TEMP 1".to_owned(), Unit::Celsius, 864),
-        MonitoringItem::new("CORE TEMP 2".to_owned(), Unit::Celsius, 868),
-        MonitoringItem::new("CORE TEMP 3".to_owned(), Unit::Celsius, 872),
-        MonitoringItem::new("CORE TEMP 4".to_owned(), Unit::Celsius, 876),
-        MonitoringItem::new("CORE TEMP 5".to_owned(), Unit::Celsius, 880),
-        MonitoringItem::new("CORE TEMP 6".to_owned(), Unit::Celsius, 884),
-        MonitoringItem::new("CORE TEMP 7".to_owned(), Unit::Celsius, 888),
+        build_monit_item(String::from("StapmTimeConstant"), Unit::Celsius),
+        build_monit_item(String::from("SlowPPTTimeConstant"), Unit::Celsius),
 
-        MonitoringItem::new("StapmTimeConstant".to_owned(), Unit::Celsius, 2204),
-        MonitoringItem::new("SlowPPTTimeConstant".to_owned(), Unit::Celsius, 2208)
     ];
 
     loop {

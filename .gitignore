@@ -1,3 +1,7 @@
 /target
 
 .idea/
+ptfinder.py
+powertables.tsv
+mapped.json
+Cezanne*.json
