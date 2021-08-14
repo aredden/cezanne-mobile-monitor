@@ -37,11 +37,11 @@ extern crate libloading as lib;
 
 pub fn read_float(address: u32, offset: u32) -> f32 {
     let mut data = 0;
-    getPhysLong(address + offset, &mut data);
+    get_phys_long(address + offset, &mut data);
     unsafe { return std::mem::transmute::<u32, f32>(data); }
 }
 
-fn getPhysLong(address: u32, data: &mut u32) -> bool {
+fn get_phys_long(address: u32, data: &mut u32) -> bool {
     unsafe {
         let lib = lib::Library::new("inpoutx64.dll").unwrap();
         let func: lib::Symbol<unsafe extern "stdcall" fn(u32, *mut u32) -> bool> = lib.get(b"GetPhysLong").unwrap();
@@ -55,49 +55,49 @@ impl Smu {
     }
 
     pub fn read_reg(&self, addr:u32, value: &mut u32) -> bool {
-        match self._ols.WritePciConfigDwordEx(SMU_PCI_ADDR, SMU_OFFSET_ADDR, addr) {
-            1 => self._ols.ReadPciConfigDwordEx(SMU_PCI_ADDR, SMU_OFFSET_DATA, value) == 1,
+        match self._ols.write_pci_config_dword_ex(SMU_PCI_ADDR, SMU_OFFSET_ADDR, addr) {
+            1 => self._ols.read_pci_config_dword_ex(SMU_PCI_ADDR, SMU_OFFSET_DATA, value) == 1,
             _ => false
         }
     }
 
     pub fn write_reg(&self, addr: u32, data: u32) -> bool {
-        match self._ols.WritePciConfigDwordEx(SMU_PCI_ADDR, SMU_OFFSET_ADDR, addr)  {
-            1 => self._ols.WritePciConfigDwordEx(SMU_PCI_ADDR, SMU_OFFSET_DATA, data) == 1,
+        match self._ols.write_pci_config_dword_ex(SMU_PCI_ADDR, SMU_OFFSET_ADDR, addr)  {
+            1 => self._ols.write_pci_config_dword_ex(SMU_PCI_ADDR, SMU_OFFSET_DATA, data) == 1,
             _ => false
         }
     }
 
     //TODO: optimize this
-    fn wait4rsp(&self, SMU_ADDR_RSP: u32) -> bool {
+    fn wait4rsp(&self, smu_addr_rsp: u32) -> bool {
         let mut result = false;
         let timeout = 1000;
         let mut data = 0;
         while (!result || data == 0) && --timeout > 0 {
-            result = self.read_reg(SMU_ADDR_RSP, &mut data);
+            result = self.read_reg(smu_addr_rsp, &mut data);
             thread::sleep(time::Duration::from_millis(1));
         }
         if timeout == 0 || data != 1 { return false; }
         result
     }
 
-    fn send_msg(&self, SMU_ADDR_MSG: u32, SMU_ADDR_RSP: u32, SMU_ADDR_ARG: u32, message: u32, args: &mut Vec<u32>) -> Status {
-        self.wait4rsp(SMU_ADDR_RSP);
+    fn send_msg(&self, smu_addr_msg: u32, smu_addr_rsp: u32, smu_addr_arg: u32, message: u32, args: &mut Vec<u32>) -> Status {
+        self.wait4rsp(smu_addr_rsp);
         let mut status = 0;
-        self.write_reg(SMU_ADDR_RSP, 0x0);
+        self.write_reg(smu_addr_rsp, 0x0);
         for i in 0..6 {
-            self.write_reg(SMU_ADDR_ARG + (i * 4) as u32, *args.get(i).unwrap_or(&0));
+            self.write_reg(smu_addr_arg + (i * 4) as u32, *args.get(i).unwrap_or(&0));
         }
 
-        self.write_reg(SMU_ADDR_MSG, message);
+        self.write_reg(smu_addr_msg, message);
 
-        self.wait4rsp(SMU_ADDR_RSP);
+        self.wait4rsp(smu_addr_rsp);
 
         for i in 0..6 {
-            self.read_reg(SMU_ADDR_ARG + i * 4, args.get_mut(i as usize).unwrap());
+            self.read_reg(smu_addr_arg + i * 4, args.get_mut(i as usize).unwrap());
         }
 
-        self.read_reg(SMU_ADDR_RSP, &mut status);
+        self.read_reg(smu_addr_rsp, &mut status);
 
         return convert_status(status);
     }
@@ -127,21 +127,21 @@ impl Smu {
         let mut ecx = 0;
         let mut edx = 0;
 
-        if self._ols.Cpuid(0x80000002, &mut eax, &mut ebx, &mut ecx, &mut edx) == 1 {
+        if self._ols.cpuid(0x80000002, &mut eax, &mut ebx, &mut ecx, &mut edx) == 1 {
             name.push_str(Smu::int_to_str(eax).as_str());
             name.push_str(Smu::int_to_str(ebx).as_str());
             name.push_str(Smu::int_to_str(ecx).as_str());
             name.push_str(Smu::int_to_str(edx).as_str());
         }
 
-        if self._ols.Cpuid(0x80000003, &mut eax, &mut ebx, &mut ecx, &mut edx) == 1 {
+        if self._ols.cpuid(0x80000003, &mut eax, &mut ebx, &mut ecx, &mut edx) == 1 {
             name.push_str(Smu::int_to_str(eax).as_str());
             name.push_str(Smu::int_to_str(ebx).as_str());
             name.push_str(Smu::int_to_str(ecx).as_str());
             name.push_str(Smu::int_to_str(edx).as_str());
         }
 
-        if self._ols.Cpuid(0x80000004, &mut eax, &mut ebx, &mut ecx, &mut edx) == 1 {
+        if self._ols.cpuid(0x80000004, &mut eax, &mut ebx, &mut ecx, &mut edx) == 1 {
             name.push_str(Smu::int_to_str(eax).as_str());
             name.push_str(Smu::int_to_str(ebx).as_str());
             name.push_str(Smu::int_to_str(ecx).as_str());

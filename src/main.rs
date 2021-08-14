@@ -1,13 +1,15 @@
-use std::{thread, time};
-mod smu;
-mod ols;
-mod load_json;
+use std::{env, thread, time};
 mod cezanne;
-use regex::Regex;
-use lazy_static::{lazy_static};
-use crate::ols::Ols; //, smu};
-use crate::smu::{Smu, read_float};
+mod load_json;
+mod ols;
+mod smu;
+mod cli_helpers;
 use crate::cezanne::get_cezanne_data;
+use crate::ols::Ols; //, smu};
+use crate::smu::{read_float, Smu};
+use crate::cli_helpers::extract_cli_args;
+use lazy_static::lazy_static;
+use regex::Regex;
 
 use std::time::Duration;
 
@@ -27,7 +29,7 @@ struct MonitoringItem {
     description: String,
     unit: Unit,
     offset: u32,
-    value: f32
+    value: f32,
 }
 
 fn is_cezanne(text: &str) -> bool {
@@ -39,7 +41,12 @@ fn is_cezanne(text: &str) -> bool {
 
 impl MonitoringItem {
     pub fn new(description: String, unit: Unit, offset: u32) -> MonitoringItem {
-        MonitoringItem { description, unit, offset, value: 0.0}
+        MonitoringItem {
+            description,
+            unit,
+            offset,
+            value: 0.0,
+        }
     }
 
     pub fn update(&mut self, addr: u32) {
@@ -47,11 +54,19 @@ impl MonitoringItem {
     }
 }
 
+static mut TABLE_JSON_PATH: Option<String> = None;
+
 fn main() {
+    let args: Vec<String> = env::args().collect();
+    println!("Args: {:#?}", args);
+    let path = extract_cli_args();
+    unsafe{
+        TABLE_JSON_PATH = Some(path);
+    }
 
     let ols = match Ols::new() {
         Ok(val) => val,
-        Err(e) => panic!("Error happened:{:?}", e)
+        Err(e) => panic!("Error happened:{:?}", e),
     };
 
     let smu = Smu::new(ols);
@@ -81,28 +96,35 @@ fn main() {
     };*/
     
     fn build_monit_item(name: String, unit: Unit) -> MonitoringItem {
-        let cdata = get_cezanne_data();    
-
-        let offset = cdata.get(&name);
-        if offset.is_none(){
-            panic!("{} not found", &name);
+        let mut tjpath = "".to_owned();
+        unsafe {
+            match &TABLE_JSON_PATH {
+                Some(path) => {
+                    tjpath.clone_from(&path);
+                    let cdata = get_cezanne_data(&tjpath);
+                    let offset = cdata.get(&name);
+                    if offset.is_none() {
+                        panic!("{} not found", &name);
+                    }
+                    let offset_int = offset.unwrap().parse::<u32>().unwrap();
+                    MonitoringItem::new(name, unit, offset_int)
+                }
+                None => {
+                    panic!("Usage: --path <path>");
+                }
+            }
         }
-        let offset_int = offset.unwrap().parse::<u32>().unwrap();
-        MonitoringItem::new(name,unit,offset_int)
     }
 
     let mut items = vec![
         build_monit_item(String::from("STAPM_LIMIT"), Unit::Watt),
         build_monit_item(String::from("STAPM_VALUE"), Unit::Watt),
-
         build_monit_item(String::from("PPT_LIMIT_FAST"), Unit::Watt),
         build_monit_item(String::from("PPT_VALUE_FAST"), Unit::Watt),
         build_monit_item(String::from("PPT_LIMIT_SLOW"), Unit::Watt),
         build_monit_item(String::from("PPT_VALUE_SLOW"), Unit::Watt),
-        
         build_monit_item(String::from("THM_LIMIT_CORE"), Unit::Celsius),
         build_monit_item(String::from("THM_VALUE_CORE"), Unit::Celsius),
-
         build_monit_item(String::from("CORE_FREQ_0"), Unit::Mhz),
         build_monit_item(String::from("CORE_FREQ_1"), Unit::Mhz),
         build_monit_item(String::from("CORE_FREQ_2"), Unit::Mhz),
@@ -111,7 +133,6 @@ fn main() {
         build_monit_item(String::from("CORE_FREQ_5"), Unit::Mhz),
         build_monit_item(String::from("CORE_FREQ_6"), Unit::Mhz),
         build_monit_item(String::from("CORE_FREQ_7"), Unit::Mhz),
-        
         build_monit_item(String::from("CORE_TEMP_0"), Unit::Celsius),
         build_monit_item(String::from("CORE_TEMP_1"), Unit::Celsius),
         build_monit_item(String::from("CORE_TEMP_2"), Unit::Celsius),
@@ -120,10 +141,8 @@ fn main() {
         build_monit_item(String::from("CORE_TEMP_5"), Unit::Celsius),
         build_monit_item(String::from("CORE_TEMP_6"), Unit::Celsius),
         build_monit_item(String::from("CORE_TEMP_7"), Unit::Celsius),
-
         build_monit_item(String::from("StapmTimeConstant"), Unit::Celsius),
         build_monit_item(String::from("SlowPPTTimeConstant"), Unit::Celsius),
-
     ];
 
     loop {
@@ -131,9 +150,8 @@ fn main() {
         thread::sleep(Duration::from_millis(100));
         let mut other_arr: Vec<JsonValue> = Vec::new();
         for item in &mut items {
-
             item.update(address);
-            let data = object!{
+            let data = object! {
                 description: item.description.to_string(),
                 offset: item.offset.to_string(),
                 value: item.value.to_string()
@@ -141,11 +159,11 @@ fn main() {
             // let stri = json::stringify(data).to_owned();
             other_arr.push(data.clone());
         }
-        let json_stringable = object!{
+        let json_stringable = object! {
             values: other_arr
         };
         let jsonval = json::stringify(json_stringable);
-        println!("{}",&jsonval);
+        println!("{}", &jsonval);
         thread::sleep(time::Duration::from_secs(1));
     }
 }

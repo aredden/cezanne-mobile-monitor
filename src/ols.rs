@@ -17,25 +17,26 @@ pub enum Error {
     DllInitializeError
 }
 
-const ReadPciConfigDwordEx: &'static [u8] = b"ReadPciConfigDwordEx";
-const WritePciConfigDwordEx: &'static [u8] = b"WritePciConfigDwordEx";
-const InitializeOls: &'static [u8] = b"InitializeOls";
-const Cpuid: &'static [u8] = b"Cpuid";
+
+const READ_PCI_CONFIG_DWORD_EX: &'static [u8] = b"ReadPciConfigDwordEx";
+const WRITE_PCI_CONFIG_DWORD_EX: &'static [u8] = b"WritePciConfigDwordEx";
+const INIT_OLS: &'static [u8] = b"InitializeOls";
+const CPUID: &'static [u8] = b"Cpuid";
 
 impl Ols {
     pub fn new() -> Result<Ols, Error> {
         let lib = unsafe {
             match libloading::Library::new("WinRing0x64.dll") {
                 Ok(val) => val,
-                Err(e) => return Err(Error::DllNotFound)
+                Err(_e) => return Err(Error::DllNotFound)
             }
         };
 
-        let (func_initialize, func_cpuid, func_read, func_write) = unsafe {
-            let func_read: libloading::Symbol<FnRead> = lib.get(ReadPciConfigDwordEx).map_err(|err| Error::DllIncorrectVersion)?;
-            let func_write: libloading::Symbol<FnWrite> = lib.get(WritePciConfigDwordEx).map_err(|err| Error::DllIncorrectVersion)?;
-            let func_initialize: libloading::Symbol<FnInitialize> = lib.get(InitializeOls).map_err(|err| Error::DllIncorrectVersion)?;
-            let func_cpuid: libloading::Symbol<FnCpuid> = lib.get(Cpuid).map_err(|err| Error::DllIncorrectVersion)?;
+        let (_func_initialize, _func_cpuid, _func_read, _func_write) = unsafe {
+            let func_read: libloading::Symbol<FnRead> = lib.get(READ_PCI_CONFIG_DWORD_EX).map_err(|_err| Error::DllIncorrectVersion)?;
+            let func_write: libloading::Symbol<FnWrite> = lib.get(WRITE_PCI_CONFIG_DWORD_EX).map_err(|_err| Error::DllIncorrectVersion)?;
+            let func_initialize: libloading::Symbol<FnInitialize> = lib.get(INIT_OLS).map_err(|_err| Error::DllIncorrectVersion)?;
+            let func_cpuid: libloading::Symbol<FnCpuid> = lib.get(CPUID).map_err(|_err| Error::DllIncorrectVersion)?;
 
 
             Ok((func_initialize, func_cpuid, func_read, func_write))
@@ -52,28 +53,28 @@ impl Ols {
 
     pub fn init(&self) -> i32 {
         unsafe {
-            let fnc:libloading::Symbol<FnInitialize> = self._lib.get(InitializeOls).unwrap();
+            let fnc:libloading::Symbol<FnInitialize> = self._lib.get(INIT_OLS).unwrap();
             fnc()
         }
     }
 
-    pub fn WritePciConfigDwordEx(&self, pciAddress: u32, regAddress: u32, value: u32) -> i32 {
+    pub fn write_pci_config_dword_ex(&self, pci_address: u32, reg_address: u32, value: u32) -> i32 {
         unsafe {
-            let fnc:libloading::Symbol<FnWrite> = self._lib.get(WritePciConfigDwordEx).unwrap();
-            fnc(pciAddress, regAddress, value)
+            let fnc:libloading::Symbol<FnWrite> = self._lib.get(WRITE_PCI_CONFIG_DWORD_EX).unwrap();
+            fnc(pci_address, reg_address, value)
         }
     }
 
-    pub fn ReadPciConfigDwordEx(&self, pciAddress: u32, regAddress: u32, value: &mut u32) -> i32 {
+    pub fn read_pci_config_dword_ex(&self, pci_address: u32, reg_address: u32, value: &mut u32) -> i32 {
         unsafe {
-            let fnc:libloading::Symbol<FnRead> = self._lib.get(ReadPciConfigDwordEx).unwrap();
-            fnc(pciAddress, regAddress, value)
+            let fnc:libloading::Symbol<FnRead> = self._lib.get(READ_PCI_CONFIG_DWORD_EX).unwrap();
+            fnc(pci_address, reg_address, value)
         }
     }
 
-    pub fn Cpuid(&self, index: u32, eax: &mut u32, ebx: &mut u32, ecx: &mut u32, edx: &mut u32) -> i32 {
+    pub fn cpuid(&self, index: u32, eax: &mut u32, ebx: &mut u32, ecx: &mut u32, edx: &mut u32) -> i32 {
         unsafe {
-            let fnc:libloading::Symbol<FnCpuid> = self._lib.get(Cpuid).unwrap();
+            let fnc:libloading::Symbol<FnCpuid> = self._lib.get(CPUID).unwrap();
             fnc(index, eax, ebx, ecx, edx)
         }
     }

@@ -4,11 +4,11 @@ use serde_json::{Value};
 use core::clone::Clone;
 
 static mut JSON_DATA: Option<Value> = None;
-pub fn get_cezanne_data() -> collections::HashMap<String, String> {
+pub fn get_cezanne_data(path: &str) -> collections::HashMap<String, String> {
     let mut data = collections::HashMap::new();
     unsafe {
         if JSON_DATA.is_none() {
-            let data_read = read_json("INSERT/YOUR/JSON/PATH/HERE!!".to_owned());
+            let data_read = read_json(path.to_owned());
             JSON_DATA = Some(data_read);
         }
         let mut read_data: Option<Value> = None;
