@@ -121,10 +121,6 @@ fn main() {
         build_monit_item(String::from("CORE_TEMP_6"), Unit::Celsius),
         build_monit_item(String::from("CORE_TEMP_7"), Unit::Celsius),
 
-        
-        build_monit_item(String::from("CORE_TEMP_6"), Unit::Mhz),
-        build_monit_item(String::from("CORE_TEMP_7"), Unit::Mhz),
-
         build_monit_item(String::from("StapmTimeConstant"), Unit::Celsius),
         build_monit_item(String::from("SlowPPTTimeConstant"), Unit::Celsius),
 
