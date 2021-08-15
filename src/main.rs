@@ -1,3 +1,4 @@
+use serde_json::*;
 use std::{env, thread, time};
 mod cezanne;
 mod load_json;
@@ -10,21 +11,18 @@ use crate::smu::{read_float, Smu};
 use crate::cli_helpers::extract_cli_args;
 use lazy_static::lazy_static;
 use regex::Regex;
-
+use serde::{Serialize, Deserialize};
 use std::time::Duration;
 
-#[macro_use]
-extern crate json;
-use json::JsonValue;
-
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(tag = "type", content = "c")]
 enum Unit {
     Celsius,
     Watt,
     Mhz,
 }
 
-#[derive(Debug)]
+#[derive(Debug,Deserialize,Serialize)]
 struct MonitoringItem {
     description: String,
     unit: Unit,
@@ -146,24 +144,16 @@ fn main() {
     ];
 
     loop {
+        let mut json_map = serde_json::Map::new();
         smu.send_psmu(0x65, &mut args);
+        let mut items_list = vec![];
         thread::sleep(Duration::from_millis(100));
-        let mut other_arr: Vec<JsonValue> = Vec::new();
         for item in &mut items {
             item.update(address);
-            let data = object! {
-                description: item.description.to_string(),
-                offset: item.offset.to_string(),
-                value: item.value.to_string()
-            };
-            // let stri = json::stringify(data).to_owned();
-            other_arr.push(data.clone());
+            items_list.push(serde_json::to_value(&item).unwrap());
         }
-        let json_stringable = object! {
-            values: other_arr
-        };
-        let jsonval = json::stringify(json_stringable);
-        println!("{}", &jsonval);
+        json_map.insert(String::from("values"), Value::from(items_list));
+        println!("{}", serde_json::to_string(&json_map).unwrap());
         thread::sleep(time::Duration::from_secs(1));
     }
 }

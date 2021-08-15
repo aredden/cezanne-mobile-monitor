@@ -14,7 +14,7 @@ fn copy_to_output_dir(path: &PathBuf, filename:String) {
     let dst = get_output_path();
     let dst_path = dst.join(filename.to_owned());
     if dst_path.to_owned().exists(){
-        println!("cargo:{:?} already exists, skipping copy", dst_path);
+        println!("{:?} already exists, skipping copy", dst_path);
     } else if dst.exists() {
         match fs::copy(path.to_path_buf(), dst_path.to_owned()){
             Ok(_ok) => {
@@ -31,12 +31,14 @@ fn copy_to_output_dir(path: &PathBuf, filename:String) {
 
 fn main() {
     let reqs = [
-        "inpoutx64.dll",
         "inpout32.dll",
+        "inpoutx64.dll",
         "inpoutx64.lib",
         "inpoutx64.sys",
         "WinRing0x64.dll",
-        "WinRing0x64.lib"
+        "WinRing0x64.lib",
+        "WinRing0x64.sys",
+        "WinRing0x64.exp",
         ];
     let source_dir:String = env::var("CARGO_MANIFEST_DIR").unwrap();
     let lib_dir = Path::new(&source_dir).join("libs");
