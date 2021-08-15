@@ -1,17 +1,17 @@
-use serde_json::*;
+use serde_json::{to_string, to_value, Map, Value};
 use std::{env, thread, time};
 mod cezanne;
+mod cli_helpers;
 mod load_json;
 mod ols;
 mod smu;
-mod cli_helpers;
 use crate::cezanne::get_cezanne_data;
+use crate::cli_helpers::extract_cli_args;
 use crate::ols::Ols; //, smu};
 use crate::smu::{read_float, Smu};
-use crate::cli_helpers::extract_cli_args;
 use lazy_static::lazy_static;
 use regex::Regex;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -22,7 +22,7 @@ enum Unit {
     Mhz,
 }
 
-#[derive(Debug,Deserialize,Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 struct MonitoringItem {
     description: String,
     unit: Unit,
@@ -58,7 +58,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     println!("Args: {:#?}", args);
     let path = extract_cli_args();
-    unsafe{
+    unsafe {
         TABLE_JSON_PATH = Some(path);
     }
 
@@ -77,7 +77,6 @@ fn main() {
 
     println!("init={}", init);
     println!("cpu_name={}", &cpu_name);
-    
     let mut args: Vec<u32> = vec![0, 0, 0, 0, 0, 0];
     smu.send_psmu(0x66, &mut args);
     let address = args[0];
@@ -92,7 +91,6 @@ fn main() {
         0.0 => 0x00370005,
         _ => 0x00370004
     };*/
-    
     fn build_monit_item(name: String, unit: Unit) -> MonitoringItem {
         let mut tjpath = "".to_owned();
         unsafe {
@@ -144,16 +142,16 @@ fn main() {
     ];
 
     loop {
-        let mut json_map = serde_json::Map::new();
+        let mut json_map = Map::new();
         smu.send_psmu(0x65, &mut args);
         let mut items_list = vec![];
         thread::sleep(Duration::from_millis(100));
         for item in &mut items {
             item.update(address);
-            items_list.push(serde_json::to_value(&item).unwrap());
+            items_list.push(to_value(&item).unwrap());
         }
         json_map.insert(String::from("values"), Value::from(items_list));
-        println!("{}", serde_json::to_string(&json_map).unwrap());
+        println!("{}", to_string(&json_map).unwrap());
         thread::sleep(time::Duration::from_secs(1));
     }
 }

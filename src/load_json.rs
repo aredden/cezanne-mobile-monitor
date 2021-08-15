@@ -1,6 +1,5 @@
-use serde_json::Value;
+use serde_json::{from_reader, Value};
 use std::fs::File;
-use serde_json::from_reader;
 
 pub fn read_json(file: String) -> Value {
     println!("Reading {}", file);
