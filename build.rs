@@ -14,18 +14,18 @@ fn copy_to_output_dir(path: &PathBuf, filename:String) {
     let dst = get_output_path();
     let dst_path = dst.join(filename.to_owned());
     if dst_path.to_owned().exists(){
-        println!("{:?} already exists, skipping copy", dst_path);
+        println!("cargo:warning={:?} already exists, skipping copy", dst_path);
     } else if dst.exists() {
         match fs::copy(path.to_path_buf(), dst_path.to_owned()){
             Ok(_ok) => {
-                println!("cargo:Copied {:?} to {:?}", path, dst_path.to_owned());
+                println!("cargo:success=Copied {:?} to {:?}", path, dst_path.to_owned());
             },
             Err(e) => {
-                panic!("cargo:Failed to copy {:?} to {:?}, got error:{:?}", path, dst_path.to_owned(), e);
+                panic!("cargo:warning=Failed to copy {:?} to {:?}, got error:{:?}", path, dst_path.to_owned(), e);
             }
         }
     } else {
-        panic!("cargo:Output directory does not exist: {:?}", dst);
+        panic!("cargo:warning=Output directory does not exist: {:?}", dst);
     }
 }
 
