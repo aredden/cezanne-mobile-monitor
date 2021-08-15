@@ -5,3 +5,7 @@ ptfinder.py
 powertables.tsv
 mapped.json
 Cezanne*.json
+libs/inp*
+libs/Win*
+offset_maps/Cez
+copies
