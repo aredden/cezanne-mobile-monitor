@@ -1,12 +1,11 @@
+use crate::load_json::get_smu_offsets_path;
 use serde_json::{to_string, to_value, Map, Value};
-use std::{env, thread, time};
+use std::{thread, time};
 mod cezanne;
-mod cli_helpers;
 mod load_json;
 mod ols;
 mod smu;
 use crate::cezanne::get_cezanne_data;
-use crate::cli_helpers::extract_cli_args;
 use crate::ols::Ols;
 use crate::smu::{read_float, Smu};
 use lazy_static::lazy_static;
@@ -55,12 +54,7 @@ impl MonitoringItem {
 static mut TABLE_JSON_PATH: Option<String> = None;
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    println!("Args: {:#?}", args);
-    let path = extract_cli_args();
-    unsafe {
-        TABLE_JSON_PATH = Some(path);
-    }
+
 
     let ols = match Ols::new() {
         Ok(val) => val,
@@ -79,18 +73,16 @@ fn main() {
     println!("cpu_name={}", &cpu_name);
     let mut args: Vec<u32> = vec![0, 0, 0, 0, 0, 0];
     smu.send_psmu(0x66, &mut args);
-    let address = args[0];
+    let smu_base_addr = args[0];
     args[0] = 0;
-    println!("address={}", address);
-
-    /*smu.send_psmu(0x65, &mut args);
-    thread::sleep(Duration::from_millis(100));
-
-    let table_value = smu::read_float(address, 768);
-    let tableVersion:u32 = match table_value {
-        0.0 => 0x00370005,
-        _ => 0x00370004
-    };*/
+    println!("address={:X}", &smu_base_addr);
+    let smu_version = smu.get_pmtable_version(None);
+    println!("version={}", &smu_version);
+    let path = get_smu_offsets_path(&smu_version.as_str());
+    println!("jsonpath={}",&path);
+    unsafe {
+        TABLE_JSON_PATH = Some(path);
+    };
     fn build_monit_item(name: String, unit: Unit) -> MonitoringItem {
         let mut tjpath = "".to_owned();
         unsafe {
@@ -147,7 +139,7 @@ fn main() {
         let mut items_list = vec![];
         thread::sleep(Duration::from_millis(100));
         for item in &mut items {
-            item.update(address);
+            item.update(smu_base_addr);
             items_list.push(to_value(&item).unwrap());
         }
         json_map.insert(String::from("values"), Value::from(items_list));

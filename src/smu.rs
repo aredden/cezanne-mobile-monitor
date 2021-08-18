@@ -1,3 +1,4 @@
+use std::time::Duration;
 use crate::ols::Ols;
 use std::{thread, time};
 
@@ -10,7 +11,7 @@ pub enum Status {
     Bad,
     Ok,
     Failed,
-    UnknowCmd,
+    UnknownCmd,
     CmdRejectedPreReq,
     CmdRejectedBusy
 }
@@ -28,7 +29,7 @@ fn convert_status(status: u32) -> Status {
         0x0 => Status::Bad,
         0x1 => Status::Ok,
         0xFF => Status::Failed,
-        0xFE => Status::UnknowCmd,
+        0xFE => Status::UnknownCmd,
         0xFD => Status::CmdRejectedPreReq,
         0xFC => Status::CmdRejectedBusy,
         _ => unimplemented!()
@@ -121,6 +122,44 @@ impl Smu {
 
         return format!("{}{}{}{}", Smu::uint_to_str(part1), Smu::uint_to_str(part2), Smu::uint_to_str(part3), Smu::uint_to_str(part4));
     }
+
+    /*
+    *  Gets the current version of the SMU table, which allows us to map 
+    *  to the correct SMU offsets.
+    *  {@param _do_not_use:Option<u8>}: DO NOT PROVIDE THIS PARAMETER, 
+    *   ITS ONLY FOR WHEN THE FUNCTION IS CALLED ON THE FIRST RECURSIVE RETRY.
+    */
+    pub fn get_pmtable_version(&self,_do_not_use:Option<u8>) -> String {
+
+        let mut smu_version_args: Vec<u32> = vec![0, 0, 0, 0, 0, 0];
+        match self.send_psmu(0x6, &mut smu_version_args){
+            Status::Ok => {
+                return format!("{:X}",smu_version_args[0]);
+            },
+            Status::Failed => {
+                print!("Failed to get PMU version");
+            },
+            Status::UnknownCmd => {
+                print!("Unknown command");
+            },
+            Status::CmdRejectedPreReq => {
+                print!("Command rejected because prerequisites not met");
+            },
+            Status::CmdRejectedBusy => {
+                print!("Command rejected because the SMU is busy");
+            },
+            Status::Bad => {
+                print!("Bad status when reading PMU version");
+            }
+        };
+        if let Some(_do_not_use) = _do_not_use {
+            panic!("Could not find pmtable version!");
+        } else {
+            thread::sleep(Duration::from_millis(100));
+            self.get_pmtable_version(Some(1))
+        }
+    }
+
     pub fn cpu_name(&self) -> String {
         let mut name = String::new();
         let mut eax = 0;
