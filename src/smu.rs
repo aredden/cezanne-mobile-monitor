@@ -5,6 +5,7 @@ pub struct Smu {
     _ols: Ols
 }
 
+#[derive(Debug)]
 pub enum Status {
     Bad,
     Ok,
@@ -41,7 +42,7 @@ pub fn read_float(address: u32, offset: u32) -> f32 {
     unsafe { return std::mem::transmute::<u32, f32>(data); }
 }
 
-fn get_phys_long(address: u32, data: &mut u32) -> bool {
+pub fn get_phys_long(address: u32, data: &mut u32) -> bool {
     unsafe {
         let lib = lib::Library::new("inpoutx64.dll").unwrap();
         let func: lib::Symbol<unsafe extern "stdcall" fn(u32, *mut u32) -> bool> = lib.get(b"GetPhysLong").unwrap();
