@@ -12,12 +12,12 @@ pub fn extract_cli_args() -> String {
         if i == path_index {
             path = arg_at_i;
         }
-        if arg_at_i == "--path" {
+        if arg_at_i == "--path" || arg_at_i == "-p" {
             path_index = i + 1;
         }
     }
     if path_index == -1 {
-        panic!("--path not found");
+        panic!("path argument is missing!");
     }
     path.to_owned()
 }
