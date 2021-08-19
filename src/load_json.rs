@@ -5,7 +5,7 @@ use glob;
 
 pub fn get_smu_offsets_path(smu_version: &str) -> String {
     let mut result_value:Option<String> = None;
-    let map_paths = format!("C:/Users/alexa/Documents/G14UI/renoir-mobile/offset_maps/*{}.json",smu_version);
+    let map_paths = format!("offset_maps/*{}.json",smu_version);
     for entry in glob::glob(&map_paths).expect("Failed to read glob pattern") {
         match entry {
             Ok(path) => {

@@ -9,3 +9,4 @@ libs/inp*
 libs/Win*
 offset_maps/Cez
 copies
+smu*.py
