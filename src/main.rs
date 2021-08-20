@@ -5,6 +5,8 @@ mod cezanne;
 mod load_json;
 mod ols;
 mod smu;
+mod cli;
+use crate::cli::{cli,CliOptions};
 use crate::cezanne::get_cezanne_data;
 use crate::ols::Ols;
 use crate::smu::{read_float, Smu};
@@ -12,6 +14,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "c")]
@@ -53,14 +56,25 @@ impl MonitoringItem {
 
 static mut TABLE_JSON_PATH: Option<String> = None;
 
-fn main() {
-
-
+fn initols()->Ols {
     let ols = match Ols::new() {
         Ok(val) => val,
         Err(e) => panic!("Error happened:{:?}", e),
     };
+    ols
+}
 
+fn main() {
+    let mut run_type = CliOptions::Run;
+    match cli() {
+         CliOptions::Run => {},
+         CliOptions::Table => {
+             run_type = CliOptions::Table;
+         }
+    }
+
+
+    let ols = initols();
     let smu = Smu::new(ols);
     let init = smu.write_reg(crate::smu::PSMU_ADDR_RSP, 0x1); //Initialize
     let cpu_name = smu.cpu_name();
@@ -68,16 +82,24 @@ fn main() {
     if !is_cezanne(&cpu_name) {
         panic!("CPU is not cezanne!");
     }
-
+    if run_type == CliOptions::Run {
     println!("init={}", init);
     println!("cpu_name={}", &cpu_name);
+    }
     let mut args: Vec<u32> = vec![0, 0, 0, 0, 0, 0];
     smu.send_psmu(0x66, &mut args);
     let smu_base_addr = args[0];
     args[0] = 0;
-    println!("address={:X}", &smu_base_addr);
+    if run_type == CliOptions::Run {
+        println!("address={:X}", &smu_base_addr);
+    }
     let smu_version = smu.get_pmtable_version(None);
-    println!("version={}", &smu_version);
+    if run_type == CliOptions::Run {
+        println!("version={}", &smu_version);
+    } else {
+        println!("{}", &smu_version);
+        return;
+    }
     let path = get_smu_offsets_path(&smu_version.as_str());
     println!("jsonpath={}",&path);
     unsafe {

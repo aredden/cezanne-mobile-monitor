@@ -15,7 +15,6 @@ pub struct Ols {
 
 impl Drop for Ols {
     fn drop(&mut self) {
-        println!("Dropping Ols");
         unsafe {
             let fnc:libloading::Symbol<FnDeinitialize> = self._lib.get(DEINIT_OLS).unwrap();
             fnc();
@@ -57,6 +56,7 @@ impl Ols {
             let func_dll_status: libloading::Symbol<FnDllStatus> = lib.get(DLL_STATUS).map_err(|_err| Error::DllIncorrectVersion)?;
             Ok((func_initialize, func_cpuid, func_read, func_write, func_deinitialize, func_dll_status))
         }?;
+        
 
         let ols = Ols { _lib: lib};
 
