@@ -7,7 +7,7 @@ mod ols;
 mod smu;
 mod cli;
 use crate::cli::{cli,CliOptions};
-use crate::cezanne::get_cezanne_data;
+use crate::cezanne::get_offset_data;
 use crate::ols::Ols;
 use crate::smu::{read_float, Smu};
 use lazy_static::lazy_static;
@@ -55,7 +55,7 @@ impl MonitoringItem {
 }
 
 static mut TABLE_JSON_PATH: Option<String> = None;
-
+static mut RUN_TYPE: CliOptions = CliOptions::Run;
 fn initols()->Ols {
     let ols = match Ols::new() {
         Ok(val) => val,
@@ -65,15 +65,10 @@ fn initols()->Ols {
 }
 
 fn main() {
-    let mut run_type = CliOptions::Run;
-    match cli() {
-         CliOptions::Run => {},
-         CliOptions::Table => {
-             run_type = CliOptions::Table;
-         }
+    let run_type = cli();
+    unsafe {
+        RUN_TYPE = run_type.clone();
     }
-
-
     let ols = initols();
     let smu = Smu::new(ols);
     let init = smu.write_reg(crate::smu::PSMU_ADDR_RSP, 0x1); //Initialize
@@ -82,28 +77,40 @@ fn main() {
     if !is_cezanne(&cpu_name) {
         panic!("CPU is not cezanne!");
     }
-    if run_type == CliOptions::Run {
-    println!("init={}", init);
-    println!("cpu_name={}", &cpu_name);
+
+    if run_type.clone() == CliOptions::Run {
+        println!("init={}", init);
+        println!("cpu_name={}", &cpu_name);
     }
+
     let mut args: Vec<u32> = vec![0, 0, 0, 0, 0, 0];
+
     smu.send_psmu(0x66, &mut args);
+
     let smu_base_addr = args[0];
+
     args[0] = 0;
-    if run_type == CliOptions::Run {
+
+    if run_type.clone() == CliOptions::Run {
         println!("address={:X}", &smu_base_addr);
     }
+
     let smu_version = smu.get_pmtable_version(None);
-    if run_type == CliOptions::Run {
+
+    if run_type.clone() == CliOptions::Table {
         println!("version={}", &smu_version);
-    } else {
-        println!("{}", &smu_version);
         return;
+    } else if run_type.clone() == CliOptions::Query{
+        println!("version={}", &smu_version);
     }
+
     let path = get_smu_offsets_path(&smu_version.as_str());
-    println!("jsonpath={}",&path);
+    if run_type.clone() != CliOptions::Query {
+        println!("jsonpath={}",&path);
+    }
     unsafe {
         TABLE_JSON_PATH = Some(path);
+
     };
     fn build_monit_item(name: String, unit: Unit) -> MonitoringItem {
         let mut tjpath = "".to_owned();
@@ -111,7 +118,8 @@ fn main() {
             match &TABLE_JSON_PATH {
                 Some(path) => {
                     tjpath.clone_from(&path);
-                    let cdata = get_cezanne_data(&tjpath);
+                    let silent = RUN_TYPE.clone() != CliOptions::Query;
+                    let cdata = get_offset_data(&tjpath, silent);
                     let offset = cdata.get(&name);
                     if offset.is_none() {
                         panic!("{} not found", &name);
@@ -166,6 +174,9 @@ fn main() {
         }
         json_map.insert(String::from("values"), Value::from(items_list));
         println!("{}", to_string(&json_map).unwrap());
+        if run_type.clone() == CliOptions::Query {
+            return;
+        }
         thread::sleep(time::Duration::from_secs(1));
     }
 }

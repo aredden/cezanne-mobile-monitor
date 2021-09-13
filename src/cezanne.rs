@@ -4,11 +4,11 @@ use serde_json::Value;
 use std::collections::HashMap;
 
 static mut JSON_DATA: Option<Value> = None;
-pub fn get_cezanne_data(path: &str) -> HashMap<String, String> {
+pub fn get_offset_data(path: &str, silent:bool) -> HashMap<String, String> {
     let mut data = HashMap::new();
     unsafe {
         if JSON_DATA.is_none() {
-            let data_read = read_json(path.to_owned());
+            let data_read = read_json(path.to_owned(),silent);
             JSON_DATA = Some(data_read);
         }
         let mut read_data: Option<Value> = None;
@@ -25,7 +25,7 @@ pub fn get_cezanne_data(path: &str) -> HashMap<String, String> {
                 }
             }
             None => {
-                panic!("SHIT");
+                panic!("NUUUUUUU");
             }
         }
     }

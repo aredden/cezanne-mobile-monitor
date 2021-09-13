@@ -28,8 +28,10 @@ pub fn get_smu_offsets_path(smu_version: &str) -> String {
     }
 }
 
-pub fn read_json(file: String) -> Value {
-    println!("Reading {}", file);
+pub fn read_json(file: String, silent: bool) -> Value {
+    if !silent {
+        println!("Reading {}", file);
+    }
     let file = File::open(file).expect("file should open read only");
     let json: serde_json::Result<Value> = from_reader(file);
     if json.is_err() {

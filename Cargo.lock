@@ -38,21 +38,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 
 [[package]]
-name = "cezanne-mobile-monitor"
-version = "0.1.1"
-dependencies = [
- "clap",
- "fs_extra",
- "glob",
- "lazy_static",
- "libc",
- "libloading",
- "regex",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "cfg-if"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -168,6 +153,22 @@ name = "ryu"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "71d301d4193d031abdd79ff7e3dd721168a9572ef3fe51a1517aba235bd8f86e"
+
+[[package]]
+name = "ryzen-mobile-wintools"
+version = "0.1.1"
+dependencies = [
+ "clap",
+ "fs_extra",
+ "glob",
+ "lazy_static",
+ "libc",
+ "libloading",
+ "regex",
+ "serde",
+ "serde_json",
+ "winapi",
+]
 
 [[package]]
 name = "serde"
