@@ -1,22 +1,22 @@
-use crate::load_json::get_smu_offsets_path;
-use serde_json::{to_string, to_value, Map, Value};
-use std::{thread, time};
+#![feature(toowned_clone_into)]
 mod cezanne;
 mod load_json;
 mod ols;
 mod smu;
 mod cli;
 use crate::cli::{cli,CliOptions};
+use crate::load_json::get_smu_offsets_path;
 use crate::cezanne::get_offset_data;
 use crate::ols::Ols;
 use crate::smu::{read_float, Smu};
+use serde_json::{to_string, to_value, Map, Value};
+use std::{thread, time};
 use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "type", content = "c")]
 enum Unit {
     Celsius,
@@ -24,7 +24,7 @@ enum Unit {
     Mhz,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 struct MonitoringItem {
     description: String,
     unit: Unit,
@@ -69,6 +69,11 @@ fn main() {
     unsafe {
         RUN_TYPE = run_type.clone();
     }
+
+    if run_type.clone() == CliOptions::Exit {
+        return;
+    }
+
     let ols = initols();
     let smu = Smu::new(ols);
     let init = smu.write_reg(crate::smu::PSMU_ADDR_RSP, 0x1); //Initialize
@@ -133,42 +138,47 @@ fn main() {
             }
         }
     }
-
-    let mut items = vec![
-        build_monit_item(String::from("STAPM_LIMIT"), Unit::Watt),
-        build_monit_item(String::from("STAPM_VALUE"), Unit::Watt),
-        build_monit_item(String::from("PPT_LIMIT_FAST"), Unit::Watt),
-        build_monit_item(String::from("PPT_VALUE_FAST"), Unit::Watt),
-        build_monit_item(String::from("PPT_LIMIT_SLOW"), Unit::Watt),
-        build_monit_item(String::from("PPT_VALUE_SLOW"), Unit::Watt),
-        build_monit_item(String::from("THM_LIMIT_CORE"), Unit::Celsius),
-        build_monit_item(String::from("THM_VALUE_CORE"), Unit::Celsius),
-        build_monit_item(String::from("CORE_FREQ_0"), Unit::Mhz),
-        build_monit_item(String::from("CORE_FREQ_1"), Unit::Mhz),
-        build_monit_item(String::from("CORE_FREQ_2"), Unit::Mhz),
-        build_monit_item(String::from("CORE_FREQ_3"), Unit::Mhz),
-        build_monit_item(String::from("CORE_FREQ_4"), Unit::Mhz),
-        build_monit_item(String::from("CORE_FREQ_5"), Unit::Mhz),
-        build_monit_item(String::from("CORE_FREQ_6"), Unit::Mhz),
-        build_monit_item(String::from("CORE_FREQ_7"), Unit::Mhz),
-        build_monit_item(String::from("CORE_TEMP_0"), Unit::Celsius),
-        build_monit_item(String::from("CORE_TEMP_1"), Unit::Celsius),
-        build_monit_item(String::from("CORE_TEMP_2"), Unit::Celsius),
-        build_monit_item(String::from("CORE_TEMP_3"), Unit::Celsius),
-        build_monit_item(String::from("CORE_TEMP_4"), Unit::Celsius),
-        build_monit_item(String::from("CORE_TEMP_5"), Unit::Celsius),
-        build_monit_item(String::from("CORE_TEMP_6"), Unit::Celsius),
-        build_monit_item(String::from("CORE_TEMP_7"), Unit::Celsius),
-        build_monit_item(String::from("StapmTimeConstant"), Unit::Celsius),
-        build_monit_item(String::from("SlowPPTTimeConstant"), Unit::Celsius),
+    let items = vec![
+        ("STAPM_LIMIT",Unit::Watt),
+        ("STAPM_VALUE",Unit::Watt),
+        ("PPT_LIMIT_FAST",Unit::Watt),
+        ("PPT_VALUE_FAST",Unit::Watt),
+        ("PPT_LIMIT_SLOW",Unit::Watt),
+        ("PPT_VALUE_SLOW",Unit::Watt),
+        ("THM_LIMIT_CORE",Unit::Celsius),
+        ("THM_VALUE_CORE",Unit::Celsius),
+        ("CORE_FREQ_0",Unit::Mhz),
+        ("CORE_FREQ_1",Unit::Mhz),
+        ("CORE_FREQ_2",Unit::Mhz),
+        ("CORE_FREQ_3",Unit::Mhz),
+        ("CORE_FREQ_4",Unit::Mhz),
+        ("CORE_FREQ_5",Unit::Mhz),
+        ("CORE_FREQ_6",Unit::Mhz),
+        ("CORE_FREQ_7",Unit::Mhz),
+        ("CORE_TEMP_0",Unit::Celsius),
+        ("CORE_TEMP_1",Unit::Celsius),
+        ("CORE_TEMP_2",Unit::Celsius),
+        ("CORE_TEMP_3",Unit::Celsius),
+        ("CORE_TEMP_4",Unit::Celsius),
+        ("CORE_TEMP_5",Unit::Celsius),
+        ("CORE_TEMP_6",Unit::Celsius),
+        ("CORE_TEMP_7",Unit::Celsius),
+        ("StapmTimeConstant",Unit::Celsius),
+        ("SlowPPTTimeConstant",Unit::Celsius)
     ];
+    let mut monit_items:Vec<MonitoringItem> = Vec::new();
+    
+    for (i,s) in items.into_iter(){
+        let m = build_monit_item(String::from(i), s);
+        monit_items.push(m);
+    }
 
     loop {
         let mut json_map = Map::new();
         smu.send_psmu(0x65, &mut args);
         let mut items_list = vec![];
         thread::sleep(Duration::from_millis(100));
-        for item in &mut items {
+        for item in &mut monit_items {
             item.update(smu_base_addr);
             items_list.push(to_value(&item).unwrap());
         }

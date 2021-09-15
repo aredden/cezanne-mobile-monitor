@@ -29,7 +29,7 @@ pub fn get_smu_offsets_path(smu_version: &str) -> String {
 }
 
 pub fn read_json(file: String, silent: bool) -> Value {
-    if !silent {
+    if silent.clone() == false {
         println!("Reading {}", file);
     }
     let file = File::open(file).expect("file should open read only");
